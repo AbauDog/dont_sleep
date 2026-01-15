@@ -53,6 +53,9 @@ namespace dont_sleep.UI
             // Disable Windows screensaver to prevent interference
             PowerManager.DisableWindowsScreensaver();
 
+            // Set Power Mode to System Only (Allows manual monitor off)
+            PowerManager.KeepAwake(false);
+
             // Install Hook
             _globalHook = new GlobalKeyboardHook();
             _globalHook.OnKeyPressed += GlobalHook_OnKeyPressed;
@@ -72,6 +75,9 @@ namespace dont_sleep.UI
         {
              // Turn ON monitor first
             PowerManager.TurnOnMonitor(IntPtr.Zero);
+
+            // Restore Power Mode to include Display
+            PowerManager.KeepAwake(true);
 
             // Re-enable Windows screensaver
             PowerManager.EnableWindowsScreensaver();
@@ -199,6 +205,13 @@ namespace dont_sleep.UI
             _lblStatus.Location = new Point(50, 50); 
             this.Controls.Add(_lblStatus);
 
+            // Ensure mouse events pass through the label or are handled
+            _lblStatus.MouseMove += (s, e) => ResetInactivityTimer();
+            _lblStatus.MouseDown += (s, e) => ResetInactivityTimer();
+
+            this.MouseMove += (s, e) => ResetInactivityTimer();
+            this.MouseDown += (s, e) => ResetInactivityTimer();
+
             this.Load += LockScreenForm_Load;
             this.Activated += (s, e) => {
                 this.TopMost = true;
@@ -210,7 +223,7 @@ namespace dont_sleep.UI
             _inactivityTimer.Interval = 3000;
             _inactivityTimer.Tick += (s, e) => {
                 _inactivityTimer.Stop();
-                PowerManager.TurnOffMonitor(this.Handle);
+                PowerManager.TurnOffMonitor(IntPtr.Zero); // Broadcast to all
             };
 
             // Wake Pulse Timer (Aggressive Focus Stealing)

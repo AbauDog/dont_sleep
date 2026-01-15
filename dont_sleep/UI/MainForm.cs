@@ -238,7 +238,7 @@ namespace dont_sleep.UI
             _lblMinutes = new Label { Location = new Point(165, 66), AutoSize = true, ForeColor = Color.White, Text = "分" };
 
             _lblPassword = new Label { Location = new Point(30, 96), AutoSize = true, ForeColor = Color.White, Text = "解鎖密碼:" };
-            _txtPassword = new TextBox { Location = new Point(110, 93), Size = new Size(100, 23), Text = "1", BackColor = Color.FromArgb(64,64,64), ForeColor = Color.White };
+            _txtPassword = new TextBox { Location = new Point(110, 93), Size = new Size(100, 23), Text = "z", BackColor = Color.FromArgb(64,64,64), ForeColor = Color.White };
             
             // 倒數計時 Label - 位於「設定」按鈕右側，靠右對齊
             _lblCountdown = new Label
@@ -414,7 +414,7 @@ namespace dont_sleep.UI
                 // Format: <RAM Usage> <Name+(Threads)>
                 // Convert bytes to MB
                 double mb = p.MemoryBytes / 1024.0 / 1024.0;
-                procText += $"{mb:F0} MB  {p.Name}\n";
+                procText += $"{mb,5:F0} MB  {p.Name}\n";
             }
             _lblTopProc!.Text = procText;
 

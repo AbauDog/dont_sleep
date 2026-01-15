@@ -35,6 +35,8 @@ namespace dont_sleep.Services
         private const int MONITOR_ON = -1;
         private const int MONITOR_STANBY = 1;
 
+        private static readonly IntPtr HWND_BROADCAST = (IntPtr)0xffff;
+
         /// <summary>
         /// Prevent the system from entering sleep or turning off the display.
         /// 這會保持螢幕開啟。如果要模擬螢幕保護，我們需要只保持系統運作但允許(或強制)關閉螢幕。
@@ -74,12 +76,14 @@ namespace dont_sleep.Services
 
         public static void TurnOffMonitor(IntPtr handle)
         {
-            SendMessage(handle, WM_SYSCOMMAND, SC_MONITORPOWER, MONITOR_OFF);
+            IntPtr target = handle == IntPtr.Zero ? HWND_BROADCAST : handle;
+            SendMessage(target, WM_SYSCOMMAND, SC_MONITORPOWER, MONITOR_OFF);
         }
         
         public static void TurnOnMonitor(IntPtr handle)
         {
-             SendMessage(handle, WM_SYSCOMMAND, SC_MONITORPOWER, MONITOR_ON);
+            IntPtr target = handle == IntPtr.Zero ? HWND_BROADCAST : handle;
+            SendMessage(target, WM_SYSCOMMAND, SC_MONITORPOWER, MONITOR_ON);
         }
 
         /// <summary>
