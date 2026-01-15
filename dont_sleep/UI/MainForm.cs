@@ -27,6 +27,7 @@ namespace dont_sleep.UI
         private Label? _lblPassword;
         private Label? _lblMinutes;
         private Button? _btnToggleSettings;
+        private Label? _lblCountdown;
         private bool _settingsVisible = false;
         
         // Custom title bar controls
@@ -206,7 +207,7 @@ namespace dont_sleep.UI
             // Toggle Settings Button - transparent background, text only
             _btnToggleSettings = new Button { 
                 Location = new Point(20, 145),  // 調整位置確保可見
-                Size = new Size(350, 25), 
+                Size = new Size(90, 25), // 縮小寬度，避免遮擋右側 Label
                 Text = "▼ 設定", 
                 BackColor = Color.Transparent, 
                 ForeColor = Color.White,
@@ -234,28 +235,42 @@ namespace dont_sleep.UI
 
             _lblTimeout = new Label { Location = new Point(40, 65), Text = "閒置時間:", AutoSize = true };
             _txtTimeout = new TextBox { Location = new Point(110, 63), Size = new Size(50, 23), Text = "3", BackColor = Color.FromArgb(64,64,64), ForeColor = Color.White };
-            _lblMinutes = new Label { Location = new Point(165, 65), Text = "分", AutoSize = true };
+            _lblMinutes = new Label { Location = new Point(165, 66), AutoSize = true, ForeColor = Color.White, Text = "分" };
 
-            _lblPassword = new Label { Location = new Point(40, 95), Text = "解鎖密碼:", AutoSize = true };
+            _lblPassword = new Label { Location = new Point(30, 96), AutoSize = true, ForeColor = Color.White, Text = "解鎖密碼:" };
             _txtPassword = new TextBox { Location = new Point(110, 93), Size = new Size(100, 23), Text = "1", BackColor = Color.FromArgb(64,64,64), ForeColor = Color.White };
+            
+            // 倒數計時 Label - 位於「設定」按鈕右側，靠右對齊
+            _lblCountdown = new Label
+            {
+                AutoSize = false, // 關閉自動大小以支援靠右對齊
+                Size = new Size(160, 25),
+                TextAlign = ContentAlignment.MiddleRight,
+                Location = new Point(230, 148),  // 初始位置 (400 - 160 - 10)
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                Text = "",
+                Visible = false
+            };
+            
+            _grpSettings.Controls.Add(_rbKeepAwake);
+            _grpSettings.Controls.Add(_rbScreensaver);
+            _grpSettings.Controls.Add(_lblTimeout);
+            _grpSettings.Controls.Add(_lblPassword);
+            _grpSettings.Controls.Add(_txtTimeout);
+            _grpSettings.Controls.Add(_lblMinutes);
+            _grpSettings.Controls.Add(_txtPassword);
 
             // Apply settings on text changed
             _txtTimeout.TextChanged += (s, e) => UpdateSettingsFromUI();
             _txtPassword.TextChanged += (s, e) => UpdateSettingsFromUI();
-
-            _grpSettings.Controls.Add(_rbKeepAwake);
-            _grpSettings.Controls.Add(_rbScreensaver);
-            _grpSettings.Controls.Add(_lblTimeout);
-            _grpSettings.Controls.Add(_txtTimeout);
-            _grpSettings.Controls.Add(_lblMinutes);
-            _grpSettings.Controls.Add(_lblPassword);
-            _grpSettings.Controls.Add(_txtPassword);
 
             this.Controls.Add(_lblCpu);
             this.Controls.Add(_lblRam);
             this.Controls.Add(_lblDisk);
             this.Controls.Add(_lblTopProc);
             this.Controls.Add(_btnToggleSettings);
+            this.Controls.Add(_lblCountdown);  // 倒數計時加入主視窗
             this.Controls.Add(_grpSettings);
 
             this.Resize += MainForm_Resize;
@@ -289,12 +304,23 @@ namespace dont_sleep.UI
                 _lblTopProc.Location = new Point(20, 60);
                 currentY += 85; // 列表高度 80 + 間距 5
 
-                // 設定按鈕位置
-                _btnToggleSettings.Location = new Point(20, currentY);
-                _btnToggleSettings.Text = _settingsVisible ? "▲ 設定" : "▼ 設定";
-                currentY += 30; // 按鈕高度 25 + 間距 5
+                _btnToggleStats!.Text = _statsVisible ? "▲" : "▼";
 
-                if (_settingsVisible)
+            // 設定按鈕位置
+            _btnToggleSettings!.Location = new Point(20, currentY);
+            _btnToggleSettings.Text = _settingsVisible ? "▲ 設定" : "▼ 設定";
+            
+            // 倒數計時 Label 跟隨按鈕並靠右對齊
+            if (_lblCountdown != null)
+            {
+                int rightMargin = 15;
+                int x = this.Width - _lblCountdown.Width - rightMargin;
+                _lblCountdown.Location = new Point(x, currentY); 
+            }
+            
+            currentY += 30; // 按鈕高度 25 + 間距 5
+
+            if (_settingsVisible)
                 {
                     _grpSettings!.Visible = true;
                     _grpSettings.Location = new Point(20, currentY);
@@ -373,12 +399,12 @@ namespace dont_sleep.UI
         private void UpdateTimer_Tick(object? sender, EventArgs e)
         {
             // Get Stats
-            var (cpu, ram, disk) = _hardwareMonitor!.GetUsage();
+            var (cpu, ram, disk, isSwapping) = _hardwareMonitor!.GetUsage();
             var topProcs = _hardwareMonitor.GetTop3MemoryProcesses();
 
             // Update UI Labels with Colors
             UpdateLabel(_lblCpu!, "CPU", cpu);
-            UpdateLabel(_lblRam!, "RAM", ram, true); // High mem logic
+            UpdateLabel(_lblRam!, "RAM", ram, isSwapping); // 傳遞 SWAP 狀態
             UpdateLabel(_lblDisk!, "DISK", disk);
 
             // Update Top Proc
@@ -388,7 +414,7 @@ namespace dont_sleep.UI
                 // Format: <RAM Usage> <Name+(Threads)>
                 // Convert bytes to MB
                 double mb = p.MemoryBytes / 1024.0 / 1024.0;
-                procText += $"{mb,6:F0} MB  {p.Name}\n";
+                procText += $"{mb:F0} MB  {p.Name}\n";
             }
             _lblTopProc!.Text = procText;
 
@@ -398,17 +424,27 @@ namespace dont_sleep.UI
             _notifyIcon!.Text = tip;
         }
 
-        private void UpdateLabel(Label lbl, string name, float val, bool isRam = false)
+        private void UpdateLabel(Label lbl, string name, float val, bool forceRed = false)
         {
             // 當數值 >= 100 時不顯示小數點，避免文字過長
             string format = val >= 100 ? "F0" : "F1";
             lbl.Text = $"{name}: {val.ToString(format)}%";
             
             // Color Logic
-            // Green (<70), Orange (70-85), Red (>85)
             Color c = Color.Lime; // Bright Green
-            if (val > 85) c = Color.Red;
-            else if (val > 70) c = Color.Orange;
+            
+            // 如果 forceRed = true (正在使用 SWAP)，強制顯示紅色
+            if (forceRed)
+            {
+                c = Color.Red;
+            }
+            else
+            {
+                // 正常顏色判斷
+                // Green (<70), Orange (70-85), Red (>85)
+                if (val > 85) c = Color.Red;
+                else if (val > 70) c = Color.Orange;
+            }
             
             lbl.ForeColor = c;
         }
@@ -419,6 +455,23 @@ namespace dont_sleep.UI
             {
                 // Check Idle
                 TimeSpan idle = InputListener.GetIdleTime();
+                
+                // 計算剩餘時間
+                double remainingMinutes = _idleTimeoutMin - idle.TotalMinutes;
+                
+                if (remainingMinutes > 0)
+                {
+                    // 顯示倒數計時
+                    int remainingSeconds = (int)(remainingMinutes * 60);
+                    int mins = remainingSeconds / 60;
+                    int secs = remainingSeconds % 60;
+                    _lblCountdown!.Text = $"進入鎖定: {mins:D2}:{secs:D2}";
+                    _lblCountdown.Visible = true;
+                }
+                else
+                {
+                    _lblCountdown!.Visible = false;
+                }
                 
                 // If idle enough AND not already active
                 if (idle.TotalMinutes >= _idleTimeoutMin && !_isSimulationActive)
@@ -431,6 +484,11 @@ namespace dont_sleep.UI
                 // When simulation closes, we need to reset _isSimulationActive.
                 // But wait, simulation is a modal-like state.
                 // Better approach: Let LockScreenForm manage the state, or use a callback.
+            }
+            else
+            {
+                // 非模擬螢幕保護模式，隱藏倒數計時
+                _lblCountdown!.Visible = false;
             }
         }
 

@@ -34,7 +34,7 @@ namespace dont_sleep.Services
             _diskCounter.NextValue();
         }
 
-        public (float Cpu, float Ram, float Disk) GetUsage()
+        public (float Cpu, float Ram, float Disk, bool IsSwapping) GetUsage()
         {
             // CPU: 取兩次平均值以提高準確度
             float cpu1 = _cpuCounter.NextValue();
@@ -48,8 +48,9 @@ namespace dont_sleep.Services
             if (disk > 100) disk = 100;
 
             float ram = GetPhysicalMemoryLoad();
+            bool isSwapping = IsUsingSwap();
 
-            return (cpu, ram, disk);
+            return (cpu, ram, disk, isSwapping);
         }
 
         private float GetPhysicalMemoryLoad()
@@ -61,6 +62,24 @@ namespace dont_sleep.Services
                 return (float)memStatus.dwMemoryLoad;
             }
             return 0;
+        }
+
+        private bool IsUsingSwap()
+        {
+            // 偵測系統是否正在使用分頁檔案 (SWAP)
+            MEMORYSTATUSEX memStatus = new MEMORYSTATUSEX();
+            if (GlobalMemoryStatusEx(memStatus))
+            {
+                // 可用實體記憶體（單位：bytes）
+                ulong availPhys = memStatus.ullAvailPhys;
+                ulong totalPhys = memStatus.ullTotalPhys;
+                
+                // 判斷條件：可用記憶體 < 512MB 或 < 總記憶體的 5%
+                ulong threshold = Math.Max(512 * 1024 * 1024UL, totalPhys / 20);
+                
+                return availPhys < threshold;
+            }
+            return false;
         }
 
         public List<(string Name, long MemoryBytes)> GetTop3MemoryProcesses()
