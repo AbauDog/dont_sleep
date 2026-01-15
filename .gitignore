@@ -1,0 +1,40 @@
+## [Visual Studio]
+.vs/
+
+## [Build Results]
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+## [User-specific files]
+*.user
+*.userosscache
+*.sln.docstates
+
+## [NuGet Packages]
+*.nupkg
+# The packages folder can be ignored because of PackageReference usage
+**/packages/*
+# except build/, which is used as an MSBuild target.
+!**/packages/build/
+# Uncomment if using old style Project.csproj NuGet references
+# packages/
+
+## [Publish]
+publish/
+*.publish.xml
+
+## [OS generated files]
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+## [Temporary files]
+*.swp
+*~
+~$*
+.DS_Store
+
+## [Antigravity/Gemini Artifacts]
+.gemini/
+brain/
