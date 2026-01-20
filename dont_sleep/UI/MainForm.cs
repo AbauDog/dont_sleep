@@ -182,7 +182,27 @@ namespace dont_sleep.UI
 
             // Notify Icon
             _notifyIcon = new NotifyIcon(_components);
-            _notifyIcon.Icon = SystemIcons.Application;
+            
+            // Try load custom icon
+            try 
+            {
+                string iconPath = Path.Combine(AppContext.BaseDirectory, "resources", "app_icon.ico");
+                if (File.Exists(iconPath))
+                {
+                    Icon appIcon = new Icon(iconPath);
+                    this.Icon = appIcon;
+                    _notifyIcon.Icon = appIcon;
+                }
+                else
+                {
+                    _notifyIcon.Icon = SystemIcons.Application;
+                }
+            }
+            catch
+            {
+                _notifyIcon.Icon = SystemIcons.Application;
+            }
+
             _notifyIcon.Text = "dont_sleep";
             _notifyIcon.Visible = true;
             _notifyIcon.DoubleClick += (s, e) => {
