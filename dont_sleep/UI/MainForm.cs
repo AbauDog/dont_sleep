@@ -183,19 +183,24 @@ namespace dont_sleep.UI
             // Notify Icon
             _notifyIcon = new NotifyIcon(_components);
             
-            // Try load custom icon
+            // 從嵌入資源載入圖示
             try 
             {
-                string iconPath = Path.Combine(AppContext.BaseDirectory, "resources", "app_icon.ico");
-                if (File.Exists(iconPath))
+                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                var resourceName = "dont_sleep.resources.app_icon.ico";
+                
+                using (var stream = assembly.GetManifestResourceStream(resourceName))
                 {
-                    Icon appIcon = new Icon(iconPath);
-                    this.Icon = appIcon;
-                    _notifyIcon.Icon = appIcon;
-                }
-                else
-                {
-                    _notifyIcon.Icon = SystemIcons.Application;
+                    if (stream != null)
+                    {
+                        Icon appIcon = new Icon(stream);
+                        this.Icon = appIcon;
+                        _notifyIcon.Icon = (Icon)appIcon.Clone(); // Clone 以避免 stream 關閉後圖示遺失
+                    }
+                    else
+                    {
+                        _notifyIcon.Icon = SystemIcons.Application;
+                    }
                 }
             }
             catch
