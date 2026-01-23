@@ -8,6 +8,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <NoWarn>NU1900</NoWarn>
     <ApplicationIcon>resources\app_icon.ico</ApplicationIcon>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <ItemGroup>

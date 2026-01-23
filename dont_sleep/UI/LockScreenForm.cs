@@ -16,8 +16,6 @@ namespace dont_sleep.UI
         // Instance fields
         private Label _lblStatus;
         private System.Windows.Forms.Timer _inactivityTimer;
-        private System.Windows.Forms.Timer _wakePulseTimer;
-        private int _wakePulseCount = 0;
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -111,27 +109,24 @@ namespace dont_sleep.UI
             else
             {
                 // Wrong input: 
-                // 1. Force Monitor On
-                PowerManager.TurnOnMonitor(IntPtr.Zero);
+                // 1. Force Monitor On (Async to avoid blocking Hook)
+                Task.Run(() => PowerManager.TurnOnMonitor(IntPtr.Zero));
                 
-                // 2. Trigger Pulse to aggressively take front
-                TriggerWakePulse();
-            }
-        }
-
-        public static void TriggerWakePulse()
-        {
-            // Start timer on all valid instances
-            foreach (var f in _openForms)
-            {
-                if (!f.IsDisposed) 
+                // 2. Bring form to front
+                foreach (var f in _openForms)
                 {
-                    f._wakePulseCount = 0;
-                    f._wakePulseTimer.Stop();
-                    f._wakePulseTimer.Start();
+                    if (!f.IsDisposed && f.InvokeRequired)
+                    {
+                        f.BeginInvoke(new Action(() => WakeForm(f)));
+                    }
+                    else if (!f.IsDisposed)
+                    {
+                        WakeForm(f);
+                    }
                 }
             }
         }
+
 
         private static void WakeForm(LockScreenForm f)
         {
@@ -225,20 +220,6 @@ namespace dont_sleep.UI
                 _inactivityTimer.Stop();
                 PowerManager.TurnOffMonitor(IntPtr.Zero); // Broadcast to all
             };
-
-            // Wake Pulse Timer (Aggressive Focus Stealing)
-            _wakePulseTimer = new System.Windows.Forms.Timer();
-            _wakePulseTimer.Interval = 50; // Fire rapidy
-            _wakePulseTimer.Tick += (s, e) => {
-                _wakePulseCount++;
-                // Pulse self
-                WakeForm(this);
-
-                if (_wakePulseCount > 20) // Run for 1 second (20 * 50ms)
-                {
-                    _wakePulseTimer.Stop();
-                }
-            };
         }
 
         private void LockScreenForm_Load(object? sender, EventArgs e)
@@ -274,11 +255,6 @@ namespace dont_sleep.UI
                 {
                     _inactivityTimer.Stop();
                     _inactivityTimer.Dispose();
-                }
-                if (_wakePulseTimer != null)
-                {
-                    _wakePulseTimer.Stop();
-                    _wakePulseTimer.Dispose();
                 }
             }
             base.Dispose(disposing);
